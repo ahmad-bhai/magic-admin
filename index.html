@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic Scripts - Admin</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #050505; color: #eee; margin: 0; padding: 15px; }
+        .container { max-width: 1100px; margin: auto; }
+        .header { text-align: center; padding: 25px; background: #111; border-radius: 20px; margin-bottom: 20px; border-bottom: 4px solid #3498db; box-shadow: 0 10px 30px #000; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
+        .card { background: #121212; border-radius: 18px; padding: 20px; border: 1px solid #222; position: relative; }
+        .txid { font-family: monospace; color: #3498db; font-size: 15px; font-weight: bold; word-break: break-all; }
+        .details { font-size: 11px; color: #666; margin: 8px 0; display: flex; justify-content: space-between; }
+        .status { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .pending { background: rgba(243,156,18,0.1); color: #f39c12; }
+        .approved { background: rgba(46,204,113,0.1); color: #2ecc71; }
+        .actions { margin-top: 15px; display: flex; gap: 8px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 11px; transition: 0.2s; }
+        .btn-acc { background: #2ecc71; color: #000; }
+        .btn-rej { background: #555; color: #fff; } /* Reject now deletes the entry */
+        .btn-del { background: #e74c3c; color: #fff; }
+        #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 10px; background: #222; display: none; border-left: 4px solid #3498db; font-size: 13px; z-index: 100; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1 style="margin:0; letter-spacing: 1px;">MAGIC SCRIPTS ADMIN 🪄</h1>
+        <p style="margin:5px 0 0; color:#555; font-size: 12px;">Automatic List Management</p>
+    </div>
+    <div class="grid" id="main-grid"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+    const FB = "https://magic-payment-default-rtdb.firebaseio.com/users";
+
+    async function sync() {
+        const r = await fetch(FB + ".json");
+        const d = await r.json();
+        const g = document.getElementById('main-grid');
+        g.innerHTML = "";
+        
+        if(!d) { g.innerHTML = "<p style='grid-column:1/-1; text-align:center; color:#333; margin-top:50px;'>No Active Requests.</p>"; return; }
+
+        for (let id in d) {
+            let u = d[id];
+            // Don't show rejected in list - keep it clean
+            if(u.status === 'rejected') continue; 
+
+            g.innerHTML += `
+                <div class="card">
+                    <div class="txid">${id}</div>
+                    <div class="details">
+                        <span>Date: ${u.time ? u.time.split(',')[0] : 'N/A'}</span>
+                        <span>Time: ${u.time ? u.time.split(',')[1] : 'N/A'}</span>
+                    </div>
+                    <div class="status ${u.status}">${u.status}</div>
+                    <div class="actions">
+                        ${u.status === 'pending' ? `
+                            <button class="btn btn-acc" onclick="upd('${id}','approved')">ACCEPT</button>
+                            <button class="btn btn-rej" onclick="rem('${id}', 'Rejected & Deleted')">REJECT</button>
+                        ` : `
+                            <button class="btn btn-del" onclick="rem('${id}', 'Access Revoked')">REMOVE USER</button>
+                        `}
+                    </div>
+                </div>`;
+        }
+    }
+
+    async function upd(id, s) {
+        msg("Processing...");
+        await fetch(`${FB}/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: s }) });
+        msg("User Approved ✅");
+        sync();
+    }
+
+    async function rem(id, m) {
+        // Instant delete - No permission, No Papa mode
+        await fetch(`${FB}/${id}.json`, { method: 'DELETE' });
+        msg(m);
+        sync();
+    }
+
+    function msg(t) {
+        const x = document.getElementById('toast');
+        x.innerText = t; x.style.display = "block";
+        setTimeout(() => x.style.display = "none", 2500);
+    }
+
+    setInterval(sync, 4000);
+    sync();
+</script>
+</body>
+</html>
