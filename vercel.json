@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/api/heart",
+      "dest": "/api/heart.js"
+    },
+    {
+      "src": "/heart",
+      "dest": "/api/heart.js"
+    }
+  ]
+}
